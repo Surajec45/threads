@@ -1,15 +1,21 @@
 package com.example.threads.viewmodels
 import android.content.Context
 import android.net.Uri
+import android.service.autofill.UserData
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.google.firebase.auth.FirebaseAuth
 import androidx.lifecycle.ViewModel
 import com.example.threads.model.UserModel
+import com.example.threads.naviagation.Routes
 import com.example.threads.utils.SharedPref
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import java.util.UUID
@@ -19,8 +25,8 @@ class AuthViewModel: ViewModel(){
     private val db: FirebaseDatabase =FirebaseDatabase.getInstance()
     val userRef: DatabaseReference =db.getReference("users")
 
-    private val _firebaseUser= MutableLiveData<FirebaseUser>()
-    val firebaseUser:LiveData<FirebaseUser> = _firebaseUser
+    private val _firebaseUser = MutableLiveData<FirebaseUser?>()
+    val firebaseUser:LiveData<FirebaseUser?> = _firebaseUser
 
     private val storageRef= Firebase.storage.reference
     private val imageRef= storageRef.child("users/${UUID.randomUUID()}.jpg)")
@@ -32,15 +38,36 @@ class AuthViewModel: ViewModel(){
         _firebaseUser.value=auth.currentUser
     }
 
-    fun login(email:String,password:String){
+    fun login(email: String, password: String, context: Context){
         auth.signInWithEmailAndPassword(email,password)
             .addOnCompleteListener{
                 if(it.isSuccessful){
                     _firebaseUser.postValue(auth.currentUser)
+                    getData(auth.currentUser!!.uid,context)
                 } else {
-                    _error.postValue("Something went wrong.")
+                    _error.postValue(it.exception!!.message)
                 }
             }
+    }
+
+    private fun getData(uid: String,context:Context) {
+        userRef.child(uid).addListenerForSingleValueEvent(object: ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val userData=snapshot.getValue(UserModel::class.java)
+                SharedPref.storeData(
+                    userData!!.name,
+                    userData!!.email,
+                    userData!!.bio,
+                    userData!!.userName,
+                    userData!!.imageUrl,
+                    context)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                TODO("Not yet implemented")
+            }
+
+        })
     }
 
     fun register(
@@ -55,6 +82,7 @@ class AuthViewModel: ViewModel(){
         auth.createUserWithEmailAndPassword(email,password)
             .addOnCompleteListener{
                 if(it.isSuccessful){
+
                     _firebaseUser.postValue(auth.currentUser)
                     saveImage(email,password,name,bio,userName,imageUri,auth.currentUser?.uid,context)
                 } else {
@@ -78,18 +106,22 @@ class AuthViewModel: ViewModel(){
         name: String,
         bio: String,
         userName: String,
-        toString: String,
+        imageUrl: String,
         uid: String?,
         context: Context
     ){
-       val userData = UserModel(email,password,name,bio,userName,toString)
+       val userData = UserModel(email,password,name,bio,userName, imageUrl,uid!!)
 
         userRef.child(uid!!).setValue(userData)
             .addOnSuccessListener {
-                SharedPref.storeData(name,email,bio,userName, toString,context)
+                SharedPref.storeData(name,email,bio,userName, imageUrl,context)
 
             }.addOnFailureListener{
 
             }
+    }
+    fun logout(){
+        auth.signOut()
+        _firebaseUser.postValue(null)
     }
 }

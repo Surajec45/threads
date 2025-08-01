@@ -32,16 +32,16 @@ fun BottomNav(navController: NavHostController) {
                Splash(navController)
            }
            composable(Routes.Home.routes){
-               Home()
+               Home(navController)
            }
            composable(Routes.Search.routes){
-               Search()
+               Search(navController)
            }
            composable(Routes.Profile.routes){
-               Profile()
+               Profile(navController)
            }
            composable(Routes.AddThread.routes){
-               AddThreads()
+               AddThreads(navController1)
            }
            }
 

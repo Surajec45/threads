@@ -99,6 +99,8 @@ fun Register(navHostController: NavHostController) {
         } else{
 
         }
+    }
+    LaunchedEffect(firebaseUser){
         if(firebaseUser!=null) {
             navHostController.navigate(Routes.BottomNav.routes) {
                 popUpTo(navHostController.graph.startDestinationId)
